@@ -1,14 +1,7 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod frost;
+pub use frost::FrostSigner;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod schnorr;
+pub use schnorr::Signature;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+mod keygen;
