@@ -136,17 +136,19 @@ impl FrostSigner {
     pub fn public_commitment(&self) -> Vec<decaf377::Element> {
         self.commitment.clone()
     }
+
+    pub fn schnorr_sign(&self, transcript: merlin::Transcript) -> schnorr::Signature {
+        schnorr::Signature::default()
+    }
 }
 
 /*
 
 What if we abstracted the protocol implemetnation into a trait?
+    DKG: SchnorrSig
+
+    PreProcessing: DKG
+
+    etc.
 
 */
-
-
-pub trait SchnorrSignConstantTerm {
-    fn sign_constant_term(&self, constant_term: decaf377::Fr) -> schnorr::Signature {
-        let mut transcript = merlin::Transcript::new(b"FROST");
-    }
-}
