@@ -1,4 +1,5 @@
-use std::collections::BTreeMap;
+use ark_ff::{UniformRand, Zero};
+use rand_core::{CryptoRng, RngCore};
 
 use crate::schnorr;
 
@@ -11,7 +12,7 @@ pub struct FrostSigner<const T: usize> {
     /// A public commitment to the coefficients of the polynomial
     /// used to generate the signing key.
     fingerprint: [decaf377::Element; T],
-    peer_commitments: BTreeMap<u64, PeerCommitment<T>>,
+    peer_commitments: [PeerCommitment<T>; T],
 }
 
 pub struct PeerCommitment<const T: usize> {
@@ -21,4 +22,28 @@ pub struct PeerCommitment<const T: usize> {
     pub signing_key: [decaf377::Element; T],
     ///
     pub sig: schnorr::Signature,
+}
+
+impl<const T: usize> Default for PeerCommitment<T> {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            signing_key: [decaf377::Element::zero(); T],
+            sig: schnorr::Signature::default(),
+        }
+    }
+}
+
+impl<const T: usize> FrostSigner<T> {
+    pub fn new<R: CryptoRng + RngCore>(id: u64, mut rng: R) -> Self {
+        let signing_key: [decaf377::Fr; T] = [decaf377::Fr::rand(&mut rng); T];
+        let fingerprint = [decaf377::Element::rand(&mut rng); T];
+        let peer_commitments = core::array::from_fn(|_| PeerCommitment::default());
+        Self {
+            id,
+            signing_key,
+            fingerprint,
+            peer_commitments,
+        }
+    }
 }

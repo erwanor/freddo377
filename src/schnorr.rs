@@ -1,3 +1,4 @@
+use ark_ff::Zero;
 use decaf377::{Element, Fr};
 
 pub struct Signature {
@@ -5,4 +6,13 @@ pub struct Signature {
     pub commitment: Element,
     /// \mu := k + a0*H(...)
     pub challenge_response: Fr,
+}
+
+impl Default for Signature {
+    fn default() -> Self {
+        Self {
+            commitment: Element::zero(),
+            challenge_response: Fr::zero(),
+        }
+    }
 }
