@@ -3,6 +3,45 @@ use rand_core::{CryptoRng, RngCore};
 
 use crate::schnorr;
 
+
+/*
+
+    Imagining what the usage of this library might look like:
+
+    We have a set of signers, each of which has a unique identifier, that form a committee.
+
+    Signer_1: 
+        - initializes a FrostSigner with a unique identifier
+        - generates its signing key, and a public commitment to that key
+        - software glue code sends the public commitment to the other signers
+        - software glue code receives the public commitments from the other signers
+    
+    During that process, it's possible that:
+        - a committee member is malicious and sends a bad public commitment
+        - a committee member is malicious and drops out of the protocol
+        - a committee member is malicious and spoofs the id of another committee member
+
+    So, we need to be able to have two representations of the protocol:
+    - one data structure that models the local signer, and the view that the local signer has of the committee.
+    - one data structure that models the committee, and the view that the committee has of the local signer.
+    - a splittable data structure that contains both, we should be able to delegate processing of the committee to a separate process.
+
+
+        ```rust
+
+        let mut committee = FrostCommittee::new();
+        let mut local_signer = FrostSigner::new();
+
+        p2p.broadcast(local_signer.public_commitment);
+        for peer_commitment in p2p.receive() {
+            committee.add_signer(peer_commitment);
+        }
+
+
+*/
+
+
+
 /// A participant in the FROST protocol
 pub struct FrostSigner<const T: usize> {
     /// The client's identifier.
