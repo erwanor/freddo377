@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 ark-ff = "0.4.2"
 decaf377 = "0.4.0"
+merlin = "3.0.0"
 rand_core = { version = "0.6.4", features = ["getrandom"] }
