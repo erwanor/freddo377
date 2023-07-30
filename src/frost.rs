@@ -40,6 +40,14 @@ use crate::schnorr;
         ```
 
         In this setup, the work of verifying the peer commitments is done by the committee, and the local signer doesn't need to do any work.
+
+
+    Entry: July 30th,
+
+    I'm going to first implement all the different bits of logic of the protocol (e.g. evaluating the committed polynomial at a specific point), and then
+    i'll go about re-architecting the whole into a more modular design with hopefully not footguns.
+
+
 */
 
 pub struct FrostCommittee {
@@ -141,6 +149,17 @@ impl FrostSigner {
 
     pub fn public_commitment(&self) -> Vec<decaf377::Element> {
         self.commitment.clone()
+    }
+
+    fn signing_key_evaluate<T: Into<decaf377::Fr>>(&self, point: T) -> decaf377::Fr {
+        let point: decaf377::Fr = point.into();
+        let mut result = decaf377::Fr::zero();
+
+        for coefficient in self.signing_key.iter().rev() {
+            result = result * point + coefficient;
+        }
+
+        result
     }
 
     /// TODO: specify the transcript protocol in a trait, and implement it for specific
