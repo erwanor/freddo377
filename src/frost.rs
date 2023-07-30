@@ -57,6 +57,8 @@ pub struct FrostCommittee {
     pub t: usize,
     /// The set of signers in the committee.
     pub signers: Vec<PeerCommitment>,
+    /// The committee's public signing key.
+    pub public_key: Vec<decaf377::Element>,
 }
 
 impl FrostCommittee {
@@ -65,6 +67,7 @@ impl FrostCommittee {
             n,
             t,
             signers: Vec::new(),
+            public_key: Vec::new(),
         }
     }
 
@@ -78,6 +81,11 @@ impl FrostCommittee {
 
     pub fn committee_size(&self) -> usize {
         self.n
+    }
+
+    pub fn verify_peer_share(&self, peer_src: u64, peer_dst: u64, share: decaf377::Fr) -> bool {
+        // implement this at the level of the verification key
+        todo!()
     }
 }
 
