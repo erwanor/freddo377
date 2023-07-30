@@ -8,6 +8,8 @@ pub struct Signature {
     pub challenge_response: Fr,
 }
 
+impl Signature {}
+
 impl Default for Signature {
     fn default() -> Self {
         Self {

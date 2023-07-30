@@ -80,7 +80,7 @@ pub struct FrostSigner {
     /// The coefficient of the polynomial used to generate the signing key.
     /// TODO(erwan): newtype this or something.
     pub signing_key: Vec<decaf377::Fr>,
-    /// This participant's random nonce.
+    /// This participant's blinding factor.
     pub nonce: decaf377::Fr,
     /// A public commitment to the coefficients of the polynomial
     /// used to generate the signing key.
@@ -143,34 +143,112 @@ impl FrostSigner {
         self.commitment.clone()
     }
 
-    pub fn schnorr_sign(&self) -> (merlin::Transcript, schnorr::Signature) {
+    /// TODO: specify the transcript protocol in a trait, and implement it for specific
+    /// FrostSigner<T: State> types.
+    pub fn keygen_proof(&self) -> (schnorr::Signature, merlin::Transcript) {
+        let nonce_commitment = self.nonce * decaf377::basepoint();
+        let (challenge, transcript) =
+            FrostSigner::keygen_challenge(self.id(), self.commitment[0], nonce_commitment);
+
+        let sig = schnorr::Signature {
+            commitment: nonce_commitment,
+            challenge_response: self.nonce + challenge * self.signing_key[0],
+        };
+
+        (sig, transcript)
+    }
+
+    pub fn keygen_challenge(
+        id: u64,
+        constant_term_commitment: decaf377::Element,
+        nonce_commitment: decaf377::Element,
+    ) -> (decaf377::Fr, merlin::Transcript) {
+        let mut transcript =
+            FrostSigner::keygen_transcript(id, constant_term_commitment, nonce_commitment);
+        let mut challenge_raw: [u8; 32] = [0u8; 32];
+        transcript.challenge_bytes(b"schnorr-sig-challenge", &mut challenge_raw);
+        let challenge_scalar = decaf377::Fr::from_le_bytes_mod_order(&challenge_raw);
+        (challenge_scalar, transcript)
+    }
+
+    pub fn keygen_transcript(
+        id: u64,
+        constant_term_commitment: decaf377::Element,
+        nonce_commitment: decaf377::Element,
+    ) -> merlin::Transcript {
         let mut transcript = merlin::Transcript::new(b"freddo377-key-gen");
-        transcript.append_u64(b"signer-identifier", self.id());
+        transcript.append_u64(b"signer-identifier", id);
         transcript.append_message(
             b"constant-term-commitment",
-            self.commitment[0].vartime_compress().0.as_ref(),
+            constant_term_commitment.vartime_compress().0.as_ref(),
         );
 
-        let nonce_commitment = self.nonce * decaf377::basepoint();
         transcript.append_message(
             b"nonce-commitment",
             nonce_commitment.vartime_compress().0.as_ref(),
         );
+        transcript
+    }
 
-        let mut challenge_raw: [u8; 32] = [0u8; 32];
-        transcript.challenge_bytes(b"schnorr-sig-challenge", &mut challenge_raw);
+    pub fn keygen_verify_proof(
+        id: u64,
+        constant_term_commitment: decaf377::Element,
+        nonce_commitment: decaf377::Element,
+        sig: schnorr::Signature,
+    ) -> bool {
+        let (challenge, _) =
+            FrostSigner::keygen_challenge(id, constant_term_commitment, nonce_commitment);
 
-        let challenge_scalar = decaf377::Fr::from_le_bytes_mod_order(&challenge_raw);
+        let candidate_commitment =
+            sig.challenge_response * decaf377::basepoint() - challenge * constant_term_commitment;
+        candidate_commitment.vartime_compress().0 == sig.commitment.vartime_compress().0
+    }
 
-        let sig = schnorr::Signature {
-            commitment: nonce_commitment,
-            challenge_response: self.nonce + challenge_scalar * self.signing_key[0],
-        };
-
-        (transcript, sig)
+    pub fn nonce_commitment(&self) -> decaf377::Element {
+        self.nonce * decaf377::basepoint()
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use rand_core::OsRng;
+
+    use super::*;
+
+    #[test]
+    /// Check that a signer can verify its own proof.
+    pub fn generate_proof_and_verify() {
+        let mut rng = OsRng;
+        let signer = FrostSigner::new(1, 3, 2, &mut rng);
+        let (sig, _transcript) = signer.keygen_proof();
+        assert!(FrostSigner::keygen_verify_proof(
+            signer.id(),
+            signer.commitment[0],
+            signer.nonce_commitment(),
+            sig
+        ));
+    }
+
+    #[test]
+    /// Check that challenges are generated deterministically.
+    pub fn transcript_consistency() {
+        let mut rng = OsRng;
+        let signer = FrostSigner::new(1, 3, 2, &mut rng);
+        let (challenge1, _) = FrostSigner::keygen_challenge(
+            signer.id(),
+            signer.commitment[0],
+            signer.nonce_commitment(),
+        );
+
+        let (challenge2, _) = FrostSigner::keygen_challenge(
+            signer.id(),
+            signer.commitment[0],
+            signer.nonce_commitment(),
+        );
+
+        assert_eq!(challenge1, challenge2);
+    }
+}
 /*
 
 What if we abstracted the protocol implemetnation into a trait?
